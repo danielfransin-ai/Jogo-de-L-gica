@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PIXEL://ESCAPE — Fuga do Sistema</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg: #070a09;
+    --bg-panel: #0d1411;
+    --grid-line: #132019;
+    --green: #39ff88;
+    --green-dim: #1c8a4d;
+    --cyan: #4ff0ff;
+    --magenta: #ff3d7f;
+    --amber: #ffd23f;
+    --text: #d8f5e3;
+    --text-dim: #6e9c85;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:
+      repeating-linear-gradient(0deg, rgba(57,255,136,0.035) 0px, rgba(57,255,136,0.035) 1px, transparent 1px, transparent 3px),
+      radial-gradient(circle at 50% -10%, #0f1c15 0%, var(--bg) 55%);
+    color:var(--text);
+    font-family:'JetBrains Mono', monospace;
+    min-height:100vh;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:24px;
+    overflow-x:hidden;
+  }
+  .display{font-family:'Press Start 2P', monospace;}
+
+  .console{
+    width:100%;
+    max-width:760px;
+    background:var(--bg-panel);
+    border:2px solid var(--green-dim);
+    border-radius:6px;
+    box-shadow: 0 0 0 1px #000, 0 0 40px rgba(57,255,136,0.08), inset 0 0 60px rgba(0,0,0,0.6);
+    position:relative;
+    overflow:hidden;
+  }
+  .console::before{
+    content:"";
+    position:absolute; inset:0;
+    background:repeating-linear-gradient(0deg, rgba(0,0,0,0.15) 0px, rgba(0,0,0,0.15) 1px, transparent 1px, transparent 2px);
+    pointer-events:none;
+    mix-blend-mode:multiply;
+  }
+
+  /* HEADER */
+  .topbar{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:14px 18px;
+    border-bottom:1px solid var(--grid-line);
+    background:linear-gradient(180deg, #0f1a14, #0b120e);
+    gap:12px; flex-wrap:wrap;
+  }
+  .brand{font-family:'Press Start 2P'; font-size:11px; color:var(--green); letter-spacing:1px;}
+  .brand span{color:var(--magenta);}
+  .lives{display:flex; gap:6px;}
+  .life-block{
+    width:14px; height:14px;
+    background:var(--green);
+    box-shadow:0 0 6px var(--green);
+    clip-path: polygon(50% 0%, 100% 38%, 82% 100%, 18% 100%, 0% 38%);
+  }
+  .life-block.lost{ background:#1f2a24; box-shadow:none; }
+
+  /* PROGRESS PATH */
+  .path-row{
+    display:flex; align-items:center; justify-content:center;
+    gap:6px; padding:16px 14px 4px;
+  }
+  .gate{
+    width:22px; height:22px;
+    border:2px solid var(--grid-line);
+    background:#0a100c;
+    display:flex; align-items:center; justify-content:center;
+    font-size:9px; color:var(--text-dim); font-family:'Press Start 2P';
+    position:relative;
+  }
+  .gate.done{ border-color:var(--green); background:rgba(57,255,136,0.12); color:var(--green); }
+  .gate.current{ border-color:var(--cyan); box-shadow:0 0 10px var(--cyan); color:var(--cyan); animation:pulse 1.2s infinite; }
+  @keyframes pulse{ 0%,100%{opacity:1;} 50%{opacity:0.55;} }
+  .pixel-runner{
+    position:absolute; top:-16px; left:0;
+    width:10px; height:10px; background:var(--amber);
+    box-shadow:0 0 8px var(--amber);
+    transition: transform 0.5s cubic-bezier(.4,1.4,.6,1);
+  }
+
+  /* MAIN STAGE */
+  .stage{ padding:22px 24px 26px; position:relative; }
+
+  .eyebrow{
+    font-size:10px; color:var(--text-dim); letter-spacing:2px; text-transform:uppercase; margin-bottom:6px;
+  }
+  .challenge-title{
+    font-family:'Press Start 2P'; font-size:13px; color:var(--cyan);
+    line-height:1.6; margin:0 0 14px;
+  }
+  .scenario{
+    font-size:14px; line-height:1.75; color:var(--text); margin-bottom:14px;
+  }
+  .scenario strong{ color:var(--green); }
+  .prop-box{
+    border:1px dashed var(--green-dim);
+    background:rgba(57,255,136,0.04);
+    padding:12px 14px; margin:14px 0 18px;
+    font-size:13px; line-height:1.8; color:var(--amber);
+    white-space:pre-line;
+  }
+  .question{ font-size:14px; margin-bottom:18px; color:var(--text); }
+  .question b{ color:#fff; }
+
+  .answers{ display:flex; gap:14px; margin-bottom:8px; }
+  .ans-btn{
+    flex:1; padding:16px 10px;
+    font-family:'Press Start 2P'; font-size:12px;
+    background:#0a120d; color:var(--text);
+    border:2px solid var(--grid-line);
+    cursor:pointer; letter-spacing:1px;
+    transition: all 0.15s ease;
+  }
+  .ans-btn:hover:not(:disabled){ border-color:var(--cyan); color:var(--cyan); transform:translateY(-2px); }
+  .ans-btn:active:not(:disabled){ transform:translateY(0); }
+  .ans-btn:disabled{ opacity:0.4; cursor:default; }
+  .ans-btn .key{ display:block; font-size:8px; color:var(--text-dim); margin-top:6px; }
+
+  .hint{ font-size:10px; color:var(--text-dim); margin-top:10px; }
+
+  /* FEEDBACK */
+  .feedback{
+    margin-top:18px; padding:16px; border-left:3px solid var(--green);
+    background:rgba(57,255,136,0.05); font-size:13px; line-height:1.75;
+    display:none;
+  }
+  .feedback.show{ display:block; }
+  .feedback.wrong{ border-left-color:var(--magenta); background:rgba(255,61,127,0.06); }
+  .feedback-tag{
+    font-family:'Press Start 2P'; font-size:11px; display:block; margin-bottom:8px;
+  }
+  .feedback.correct .feedback-tag{ color:var(--green); }
+  .feedback.wrong .feedback-tag{ color:var(--magenta); }
+  .feedback-logic{ color:var(--text-dim); font-size:12px; margin-top:8px; }
+  .feedback-logic b{ color:var(--cyan); }
+
+  .next-btn{
+    margin-top:16px; width:100%; padding:14px;
+    font-family:'Press Start 2P'; font-size:11px;
+    background:var(--green); color:#04150b;
+    border:none; cursor:pointer; letter-spacing:1px;
+    display:none;
+  }
+  .next-btn.show{ display:block; }
+  .next-btn:hover{ background:var(--cyan); }
+
+  /* GLITCH SHAKE */
+  .shake{ animation: shake 0.4s; }
+  @keyframes shake{
+    10%,90%{ transform:translate3d(-1px,0,0); }
+    20%,80%{ transform:translate3d(2px,0,0); }
+    30%,50%,70%{ transform:translate3d(-4px,0,0); }
+    40%,60%{ transform:translate3d(4px,0,0); }
+  }
+
+  /* END SCREENS */
+  .end-screen{ display:none; text-align:center; padding:40px 24px; }
+  .end-screen.show{ display:block; }
+  .end-title{ font-family:'Press Start 2P'; font-size:18px; margin-bottom:16px; line-height:1.6; }
+  .end-title.win{ color:var(--green); text-shadow:0 0 12px var(--green); }
+  .end-title.lose{ color:var(--magenta); text-shadow:0 0 12px var(--magenta); }
+  .end-sub{ color:var(--text-dim); font-size:13px; margin-bottom:24px; line-height:1.7; }
+  .restart-btn{
+    padding:14px 26px; font-family:'Press Start 2P'; font-size:11px;
+    background:transparent; border:2px solid var(--green); color:var(--green);
+    cursor:pointer;
+  }
+  .restart-btn:hover{ background:var(--green); color:#04150b; }
+
+  .footer-note{
+    text-align:center; padding:10px; font-size:10px; color:var(--text-dim);
+    border-top:1px solid var(--grid-line);
+  }
+
+  @media (max-width:520px){
+    .answers{ flex-direction:column; }
+    .challenge-title{ font-size:11px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="console" id="console">
+
+  <div class="topbar">
+    <div class="brand">PIXEL<span>://</span>ESCAPE</div>
+    <div class="lives" id="lives"></div>
+  </div>
+
+  <div class="path-row" id="pathRow"></div>
+
+  <div class="stage" id="stage">
+
+    <div id="gameArea">
+      <div class="eyebrow" id="eyebrow">PORTÃO 01 / 10</div>
+      <h2 class="challenge-title" id="challengeTitle">—</h2>
+      <p class="scenario" id="scenario">—</p>
+      <div class="prop-box" id="propBox">—</div>
+      <p class="question" id="question">—</p>
+
+      <div class="answers">
+        <button class="ans-btn" id="btnYes" onclick="answer(true)">SIM<span class="key">tecla S</span></button>
+        <button class="ans-btn" id="btnNo" onclick="answer(false)">NÃO<span class="key">tecla N</span></button>
+      </div>
+      <div class="hint">O pixel só avança se a lógica estiver certa. Errar custa 1 ponto de vida.</div>
+
+      <div class="feedback" id="feedback">
+        <span class="feedback-tag" id="feedbackTag">—</span>
+        <div id="feedbackText"></div>
+        <div class="feedback-logic" id="feedbackLogic"></div>
+      </div>
+
+      <button class="next-btn" id="nextBtn" onclick="nextChallenge()">PRÓXIMO PORTÃO →</button>
+    </div>
+
+    <div class="end-screen" id="loseScreen">
+      <div class="end-title lose">SISTEMA VENCEU</div>
+      <div class="end-sub">Seus pontos de vida chegaram a zero.<br>O pixel foi capturado antes de escapar.<br>Portão alcançado: <b id="loseGate">—</b>/10</div>
+      <button class="restart-btn" onclick="restart()">TENTAR NOVAMENTE</button>
+    </div>
+
+    <div class="end-screen" id="winScreen">
+      <div class="end-title win">VOCÊ ESCAPOU</div>
+      <div class="end-sub">10 de 10 portões vencidos com lógica pura.<br>Vidas restantes: <b id="winLives">—</b>/3</div>
+      <button class="restart-btn" onclick="restart()">JOGAR NOVAMENTE</button>
+    </div>
+
+  </div>
+
+  <div class="footer-note">cada acerto revela a regra lógica por trás do portão</div>
+</div>
+
+<script>
+const TOTAL_LIVES = 3;
+
+const challenges = [
+  {
+    title: "PORTÃO 01 — CONJUNÇÃO (AND)",
+    scenario: "O primeiro portão só destrava se <strong>duas</strong> condições forem verdadeiras ao mesmo tempo: a chave biométrica (A) e a senha (B).",
+    prop: "A = verdadeiro (biometria confere)\nB = falso (senha incorreta)\nRegra: A AND B",
+    question: "O portão abre?",
+    correct: false,
+    logic: "Na porta <b>AND</b>, o resultado só é verdadeiro quando <b>todas</b> as entradas são verdadeiras. Como B é falso, A AND B = falso — o portão permanece trancado, não importa que A seja verdadeiro."
+  },
+  {
+    title: "PORTÃO 02 — DISJUNÇÃO (OR)",
+    scenario: "O alarme deste corredor dispara se <strong>pelo menos um</strong> sensor detectar o pixel: movimento (A) ou calor (B).",
+    prop: "A = falso (sem movimento)\nB = verdadeiro (calor detectado)\nRegra: A OR B",
+    question: "O alarme dispara?",
+    correct: true,
+    logic: "Na porta <b>OR</b>, basta <b>uma</b> entrada verdadeira para o resultado ser verdadeiro. Como B é verdadeiro, A OR B = verdadeiro — o alarme dispara mesmo com A falso."
+  },
+  {
+    title: "PORTÃO 03 — NEGAÇÃO (NOT)",
+    scenario: "O firewall deixa um pacote de dados passar somente quando ele <strong>não</strong> está marcado como bloqueado.",
+    prop: "bloqueado = verdadeiro\nRegra de passagem: NOT(bloqueado)",
+    question: "O pacote (o pixel disfarçado) passa pelo firewall?",
+    correct: false,
+    logic: "O operador <b>NOT</b> inverte o valor: NOT(verdadeiro) = falso. Como o pacote está marcado como bloqueado, a condição de passagem é falsa — ele é barrado."
+  },
+  {
+    title: "PORTÃO 04 — OU EXCLUSIVO (XOR)",
+    scenario: "Este portão é acionado por duas alavancas. Ele abre apenas quando <strong>exatamente uma</strong> das duas estiver ativada — nunca as duas juntas.",
+    prop: "Alavanca 1 = verdadeiro\nAlavanca 2 = verdadeiro\nRegra: Alavanca1 XOR Alavanca2",
+    question: "O portão abre?",
+    correct: false,
+    logic: "No <b>XOR</b>, o resultado é verdadeiro só quando as entradas são <b>diferentes</b> entre si. Com as duas alavancas verdadeiras (iguais), XOR = falso — o mecanismo trava como proteção contra ativação simultânea."
+  },
+  {
+    title: "PORTÃO 05 — NÃO-E (NAND)",
+    scenario: "A trava de segurança libera quando <strong>não</strong> for verdade que as duas câmeras (A e B) detectaram o pixel ao mesmo tempo.",
+    prop: "Câmera A = verdadeiro\nCâmera B = verdadeiro\nRegra: NOT(A AND B)",
+    question: "A trava libera o pixel?",
+    correct: false,
+    logic: "<b>NAND</b> é a negação do AND: NOT(A AND B). Como A AND B = verdadeiro (as duas câmeras detectaram), NOT(verdadeiro) = falso — a trava permanece fechada."
+  },
+  {
+    title: "PORTÃO 06 — CONDICIONAL (SE-ENTÃO)",
+    scenario: "Uma regra do sistema diz: <strong>SE</strong> a energia estiver estável, <strong>ENTÃO</strong> a porta é destravada.",
+    prop: "energia_estavel = verdadeiro\nRegra: SE energia_estavel ENTÃO porta_destravada",
+    question: "A porta é destravada?",
+    correct: true,
+    logic: "Isso é <b>modus ponens</b>: se a premissa (P → Q) é verdadeira e P é verdadeiro, então Q também é verdadeiro. Energia estável (P) é verdadeira, logo a porta destravada (Q) também é."
+  },
+  {
+    title: "PORTÃO 07 — CONTRAPOSITIVA (MODUS TOLLENS)",
+    scenario: "Regra do sistema: <strong>SE</strong> o alarme está ativo, <strong>ENTÃO</strong> as luzes vermelhas acendem. Os sensores mostram que as luzes vermelhas estão apagadas.",
+    prop: "Regra: SE alarme_ativo ENTÃO luzes_vermelhas\nObservado: luzes_vermelhas = falso",
+    question: "Isso prova que o alarme está ativo?",
+    correct: false,
+    logic: "Por <b>modus tollens</b>, se P → Q e Q é falso, então P também é falso. Como as luzes (Q) estão apagadas, o alarme (P) necessariamente está inativo — o oposto do que a pergunta sugere."
+  },
+  {
+    title: "PORTÃO 08 — LEI DE DE MORGAN",
+    scenario: "O painel bloqueia o corredor quando <strong>não</strong> é verdade que o sensor A ou o sensor B estão ativos — ou seja, NOT(A OR B).",
+    prop: "Sensor A = falso\nSensor B = falso\nRegra: NOT(A OR B)",
+    question: "O corredor fica bloqueado?",
+    correct: true,
+    logic: "Pela <b>Lei de De Morgan</b>, NOT(A OR B) equivale a (NOT A) AND (NOT B). Como A e B são falsos, NOT A e NOT B são ambos verdadeiros, então a condição é verdadeira — o corredor bloqueia."
+  },
+  {
+    title: "PORTÃO 09 — AVALIAÇÃO EM CURTO-CIRCUITO",
+    scenario: "O sistema testa a expressão <strong>condição1 AND condição2</strong>. condição2 é uma varredura lenta e pesada que travaria o sistema por segundos.",
+    prop: "condição1 = falso\ncondição2 = (varredura pesada, ainda não executada)\nRegra: condição1 AND condição2",
+    question: "O sistema realmente chega a executar a condição2?",
+    correct: false,
+    logic: "Em <b>avaliação de curto-circuito (short-circuit evaluation)</b>, num AND, se a primeira condição já é falsa, o resultado final já está definido como falso — o interpretador nem avalia a segunda condição, economizando processamento."
+  },
+  {
+    title: "PORTÃO 10 — BIT DE CONTROLE (INVERSÃO BINÁRIA)",
+    scenario: "O portão final usa um único bit de controle. Ele abre quando, após a inversão do bit (NOT lógico em binário), o valor resultante for 1.",
+    prop: "bit original = 0\nRegra: abre se NOT(bit) = 1",
+    question: "O portão final abre e o pixel escapa?",
+    correct: true,
+    logic: "Em lógica binária, NOT inverte o bit: NOT(0) = 1 e NOT(1) = 0. Como o bit original é 0, NOT(0) = 1, satisfazendo a regra de abertura — o pixel escapa do sistema."
+  }
+];
+
+let current = 0;
+let lives = TOTAL_LIVES;
+let answered = false;
+
+function renderLives(){
+  const el = document.getElementById('lives');
+  el.innerHTML = '';
+  for(let i=0;i<TOTAL_LIVES;i++){
+    const d = document.createElement('div');
+    d.className = 'life-block' + (i >= lives ? ' lost' : '');
+    el.appendChild(d);
+  }
+}
+
+function renderPath(){
+  const row = document.getElementById('pathRow');
+  row.innerHTML = '';
+  for(let i=0;i<challenges.length;i++){
+    const g = document.createElement('div');
+    g.className = 'gate' + (i < current ? ' done' : (i === current ? ' current' : ''));
+    g.textContent = i+1;
+    if(i === current){
+      const runner = document.createElement('div');
+      runner.className = 'pixel-runner';
+      g.appendChild(runner);
+    }
+    row.appendChild(g);
+  }
+}
+
+function renderChallenge(){
+  const c = challenges[current];
+  document.getElementById('eyebrow').textContent = `PORTÃO ${String(current+1).padStart(2,'0')} / ${challenges.length}`;
+  document.getElementById('challengeTitle').textContent = c.title;
+  document.getElementById('scenario').innerHTML = c.scenario;
+  document.getElementById('propBox').textContent = c.prop;
+  document.getElementById('question').innerHTML = `<b>${c.question}</b>`;
+  const fb = document.getElementById('feedback');
+  fb.className = 'feedback';
+  document.getElementById('nextBtn').className = 'next-btn';
+  document.getElementById('btnYes').disabled = false;
+  document.getElementById('btnNo').disabled = false;
+  answered = false;
+  renderLives();
+  renderPath();
+}
+
+function answer(choice){
+  if(answered) return;
+  answered = true;
+  document.getElementById('btnYes').disabled = true;
+  document.getElementById('btnNo').disabled = true;
+
+  const c = challenges[current];
+  const isCorrect = (choice === c.correct);
+  const fb = document.getElementById('feedback');
+  const tag = document.getElementById('feedbackTag');
+  const text = document.getElementById('feedbackText');
+  const logic = document.getElementById('feedbackLogic');
+
+  if(isCorrect){
+    fb.className = 'feedback show correct';
+    tag.textContent = '✔ LÓGICA CORRETA — O PIXEL AVANÇA';
+    text.textContent = '';
+  } else {
+    fb.className = 'feedback show wrong';
+    tag.textContent = '✘ FALHA LÓGICA — 1 PONTO DE VIDA PERDIDO';
+    text.textContent = '';
+    lives--;
+    document.getElementById('console').classList.add('shake');
+    setTimeout(()=>document.getElementById('console').classList.remove('shake'), 400);
+  }
+  logic.innerHTML = c.logic;
+  renderLives();
+
+  if(lives <= 0){
+    setTimeout(()=>{ showLose(); }, 900);
+    return;
+  }
+
+  document.getElementById('nextBtn').className = 'next-btn show';
+}
+
+function nextChallenge(){
+  current++;
+  if(current >= challenges.length){
+    showWin();
+    return;
+  }
+  renderChallenge();
+}
+
+function showLose(){
+  document.getElementById('gameArea').style.display = 'none';
+  document.getElementById('loseGate').textContent = current + 1;
+  document.getElementById('loseScreen').className = 'end-screen show';
+}
+
+function showWin(){
+  document.getElementById('gameArea').style.display = 'none';
+  document.getElementById('winLives').textContent = lives;
+  document.getElementById('winScreen').className = 'end-screen show';
+}
+
+function restart(){
+  current = 0;
+  lives = TOTAL_LIVES;
+  document.getElementById('gameArea').style.display = 'block';
+  document.getElementById('loseScreen').className = 'end-screen';
+  document.getElementById('winScreen').className = 'end-screen';
+  renderChallenge();
+}
+
+document.addEventListener('keydown', (e)=>{
+  if(answered) return;
+  if(e.key.toLowerCase() === 's') answer(true);
+  if(e.key.toLowerCase() === 'n') answer(false);
+});
+
+renderChallenge();
+</script>
+
+</body>
+</html>
